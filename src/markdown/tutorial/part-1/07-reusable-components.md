@@ -95,12 +95,6 @@ git add tests/integration/components/map-test.gjs
 
 Let's update our component:
 
-
-```run:pause
-PRE PATCH
-```
-
-
 ```run:file:patch lang=gjs cwd=super-rentals filename=app/components/map.gjs
 @@ -1,6 +1,18 @@
  import Component from '@glimmer/component';
@@ -108,7 +102,7 @@ PRE PATCH
  
  export default class Map extends Component {
 +  get token() {
-+    return encodeURIComponent(ENV.MAPBOX_ACCESS_TOKEN);
++    return encodeURIComponent(ENV.TOMTOM_ACCESS_TOKEN);
 +  }
 +
    <template>
@@ -117,7 +111,7 @@ PRE PATCH
 +      <img
 +        alt="Map image at coordinates {{@lat}},{{@lng}}"
 +        ...attributes
-+        src="https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/{{@lng}},{{@lat}},{{@zoom}}/{{@width}}x{{@height}}@2x?access_token={{this.token}}"
++        src="https://api.tomtom.com/map/1/staticimage?key={{this.token}}&zoom={{@zoom}}&center={{@lng}},{{@lat}}&width={{@width}}&height={{@height}}"
 +        width={{@width}} height={{@height}}
 +      >
 +    </div>
@@ -146,15 +140,7 @@ Since the passed-in `alt` attribute (if any exists) will appear *after* ours, it
 
 The `src` attribute interpolates all the required parameters into the URL format for TomTom's [static map image API](https://developer.tomtom.com/map-display-api/documentation/raster/static-image), including the URL-escaped access token from `this.token`.
 
-Finally, since we are using the `@2x` "retina" image, we should specify the `width` and `height` attributes. Otherwise, the `<img>` will be rendered at twice the size than what we expected!
-
 We just added a lot of behavior into a single component, so let's write some tests! In particular, we should make sure to have some *[test coverage](../../../testing/)* for the overriding-HTML-attributes behavior we discussed above.
-
-
-```run:pause
-PRE PATCH
-```
-
 
 ```run:file:patch lang=gjs cwd=super-rentals filename=tests/integration/components/map-test.gjs
 @@ -2,3 +2,4 @@ import { module, test } from 'qunit';
@@ -190,27 +176,27 @@ PRE PATCH
 +      .hasAttribute('height', '120');
 +
 +    let { src } = find('.map img');
-+    let token = encodeURIComponent(ENV.MAPBOX_ACCESS_TOKEN);
++    let token = encodeURIComponent(ENV.TOMTOM_ACCESS_TOKEN);
 +
 +    assert.ok(
-+      src.startsWith('https://api.mapbox.com/'),
-+      'the src starts with "https://api.mapbox.com/"',
++      src.startsWith('https://api.tomtom.com/'),
++      'the src starts with "https://api.tomtom.com/"',
 +    );
 +
 +    assert.ok(
-+      src.includes('-122.4184,37.7797,10'),
-+      'the src should include the lng,lat,zoom parameter',
++      src.includes('zoom=10'),
++      'the src should include the zoom parameter',
 +    );
  
 -    await render(<template><Map /></template>);
 +    assert.ok(
-+      src.includes('150x120@2x'),
-+      'the src should include the width,height and @2x parameter',
++      src.includes('center=-122.4184,37.7797'),
++      'the src should include the lng,lat parameter',
 +    );
  
 -    assert.dom().hasText('');
 +    assert.ok(
-+      src.includes(`access_token=${token}`),
++      src.includes(`key=${token}`),
 +      'the src should include the escaped access token',
 +    );
 +  });
@@ -251,7 +237,7 @@ PRE PATCH
 -    assert.dom().hasText('template block text');
 +    assert
 +      .dom('.map img')
-+      .hasAttribute('src', /^https:\/\/api\.mapbox\.com\//)
++      .hasAttribute('src', /^https:\/\/api\.tomtom\.com\//)
 +      .hasAttribute('width', '150')
 +      .hasAttribute('height', '120');
    });
@@ -273,12 +259,6 @@ wait  #qunit-banner.qunit-pass
 ```
 
 Hey, all the tests passed! But does that mean it actually works in practice? Let's find out by invoking the `<Map>` component from the `<Rental>` component's template:
-
-
-```run:pause
-PRE PATCH
-```
-
 
 ```run:file:patch lang=gjs cwd=super-rentals filename=app/components/rental.gjs
 @@ -1,2 +1,3 @@
@@ -313,12 +293,6 @@ wait  .rentals li:nth-of-type(3) article.rental .map
 
 For good measure, we will also add an assertion to the `<Rental>` tests to make sure we rendered the `<Map>` component successfully.
 
-
-```run:pause
-PRE PATCH
-```
-
-
 ```run:file:patch lang=gjs cwd=super-rentals filename=tests/integration/components/rental-test.gjs
 @@ -18,2 +18,3 @@ module('Integration | Component | rental', function (hooks) {
      assert.dom('article .image').exists();
@@ -342,32 +316,26 @@ From within our JavaScript class, we have access to our component's arguments us
 >
 > `this.args` is an API provided by the Glimmer component superclass. You may come across other component superclasses, such as "classic" components in legacy codebases, that provide different APIs for accessing component arguments from JavaScript code.
 
-
-```run:pause
-PRE PATCH
-```
-
-
 ```run:file:patch lang=js cwd=super-rentals filename=app/components/map.gjs
 @@ -3,3 +3,15 @@ import ENV from 'super-rentals/config/environment';
  
-+const MAPBOX_API = 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/static';
++const TOMTOM_API = 'https://api.tomtom.com/map/1/staticimage';
 +
  export default class Map extends Component {
 +  get src() {
 +    let { lng, lat, width, height, zoom } = this.args;
 +
-+    let coordinates = `${lng},${lat},${zoom}`;
-+    let dimensions = `${width}x${height}`;
-+    let accessToken = `access_token=${this.token}`;
++    let coordinates = `&zoom=${zoom}&center=${lng},${lat}`;
++    let dimensions = `&width=${width}&height=${height}`;
++    let accessToken = `?key=${this.token}`;
 +
-+    return `${MAPBOX_API}/${coordinates}/${dimensions}@2x?${accessToken}`;
++    return `${TOMTOM_API}${accessToken}${coordinates}${dimensions}`;
 +  }
 +
    get token() {
 @@ -13,3 +25,3 @@ export default class Map extends Component {
          ...attributes
--        src="https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/{{@lng}},{{@lat}},{{@zoom}}/{{@width}}x{{@height}}@2x?access_token={{this.token}}"
+-        src="https://api.tomtom.com/map/1/staticimage?key={{this.token}}&zoom={{@zoom}}&center={{@lng}},{{@lat}}&width={{@width}}&height={{@height}}"
 +        src={{this.src}}
          width={{@width}} height={{@height}}
 ```
@@ -394,12 +362,6 @@ Ember does this by automatically tracking any variables that were accessed while
 
 Just to be sure, we can add a test for this behavior:
 
-
-```run:pause
-PRE PATCH
-```
-
-
 ```run:file:patch lang=gjs cwd=super-rentals filename=tests/integration/components/map-test.gjs
 @@ -2,5 +2,6 @@ import { module, test } from 'qunit';
  import { setupRenderingTest } from 'super-rentals/tests/helpers';
@@ -409,7 +371,7 @@ PRE PATCH
  import Map from 'super-rentals/components/map';
 +import { tracked } from '@glimmer/tracking';
  
-@@ -52,2 +53,67 @@ module('Integration | Component | map', function (hooks) {
+@@ -52,2 +53,82 @@ module('Integration | Component | map', function (hooks) {
  
 +  test('it updates the `src` attribute when the arguments change', async function (assert) {
 +    class State { 
@@ -435,13 +397,23 @@ PRE PATCH
 +    let img = find('.map img');
 +
 +    assert.ok(
-+      img.src.includes('-122.4194,37.7749,10'),
-+      'the src should include the lng,lat,zoom parameter',
++      img.src.includes('zoom=10'),
++      'the src should include the zoom parameter',
 +    );
 +
 +    assert.ok(
-+      img.src.includes('150x120@2x'),
-+      'the src should include the width,height and @2x parameter',
++      img.src.includes('-122.4194,37.7749'),
++      'the src should include the lng,lat parameter',
++    );
++
++    assert.ok(
++      img.src.includes('width=150'),
++      'the src should include the width parameter',
++    );
++
++    assert.ok(
++      img.src.includes('height=120'),
++      'the src should include the height parameter',
 +    );
 +
 +    state.width = 300;
@@ -451,13 +423,23 @@ PRE PATCH
 +    await rerender();
 +
 +    assert.ok(
-+      img.src.includes('-122.4194,37.7749,12'),
-+      'the src should include the lng,lat,zoom parameter',
++      img.src.includes('-122.4194,37.7749'),
++      'the src should still include the lng,lat parameter',
 +    );
 +
 +    assert.ok(
-+      img.src.includes('300x200@2x'),
-+      'the src should include the width,height and @2x parameter',
++      img.src.includes('width=300'),
++      'the src should include the updated width parameter',
++    );
++
++    assert.ok(
++      img.src.includes('height=200'),
++      'the src should include the updated height parameter',
++    );
++
++    assert.ok(
++      img.src.includes('zoom=12'),
++      'the src should include the updated zoom parameter',
 +    );
 +
 +    state.lat = 47.6062;
@@ -466,13 +448,8 @@ PRE PATCH
 +    await rerender();
 +
 +    assert.ok(
-+      img.src.includes('-122.3321,47.6062,12'),
-+      'the src should include the lng,lat,zoom parameter',
-+    );
-+
-+    assert.ok(
-+      img.src.includes('300x200@2x'),
-+      'the src should include the width,height and @2x parameter',
++      img.src.includes('center=-122.3321,47.6062'),
++      'the src should include the updated lng,lat parameter',
 +    );
 +  });
 +
