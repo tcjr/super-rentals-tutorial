@@ -16,27 +16,21 @@ While adding the map, you will learn about:
 
 ## Managing Application-level Configurations
 
-We will use the [Mapbox](https://www.mapbox.com) API to generate maps for our rental properties. You can [sign up](https://www.mapbox.com/signup/) for free and without a credit card.
+We will use the [TomTom](https://developer.tomtom.com/map-display-api/documentation/product-information/introduction) API to generate maps for our rental properties. You can [sign up](https://developer.tomtom.com) for free and without a credit card.
 
-Mapbox provides a [static map images API](https://docs.mapbox.com/api/maps/#static-images), which serves map images in PNG format. This means that we can generate the appropriate URL for the parameters we want and render the map using a standard `<img>` tag. Pretty neat!
+TomTom provides a [static map images API](https://developer.tomtom.com/map-display-api/documentation/raster/static-image), which serves map images in PNG format. This means that we can generate the appropriate URL for the parameters we want and render the map using a standard `<img>` tag. Pretty neat!
 
-If you're curious, you can explore the options available on Mapbox by using the [interactive playground](https://docs.mapbox.com/help/interactive-tools/static-api-playground/).
-
-Once you have signed up for the service, grab your *[default public token](https://account.mapbox.com/access-tokens/)* and paste it into `config/environment.js`:
+Once you have signed up, grab your *[default public token](https://developer.tomtom.com/user/me/apps)* and paste it into `config/environment.js`:
 
 ```run:file:patch lang=js cwd=super-rentals filename=config/environment.js
 @@ -50,2 +50,4 @@
 
-+  ENV.MAPBOX_ACCESS_TOKEN = 'paste your Mapbox access token here';
++  ENV.TOMTOM_ACCESS_TOKEN = 'paste your TomTom API key here';
 +
    return ENV;
 ```
 
 As its name implies, `config/environment.js` is used to *configure* our app and store API keys like these. These values can be accessed from other parts of our app, and they can have different values depending on the current environment (which might be development, test, or production).
-
-> Zoey says...
->
-> If you prefer, you can [create different Mapbox access tokens](https://account.mapbox.com/access-tokens/) for use in different environments. At a minimum, the tokens will each need to have the "styles:tiles" scope in order to use Mapbox's static images API.
 
 ```run:command hidden=true cwd=super-rentals
 pnpm ember test
@@ -46,8 +40,8 @@ git add config/environment.js
 ```run:file:patch hidden=true cwd=super-rentals filename=config/environment.js
 @@ -50,3 +50,3 @@
 
--  ENV.MAPBOX_ACCESS_TOKEN = 'paste your Mapbox access token here';
-+  ENV.MAPBOX_ACCESS_TOKEN = process.env.MAPBOX_ACCESS_TOKEN;
+-  ENV.TOMTOM_ACCESS_TOKEN = 'paste your TomTom API key here';
++  ENV.TOMTOM_ACCESS_TOKEN = process.env.TOMTOM_ACCESS_TOKEN;
 
 ```
 
@@ -77,7 +71,7 @@ npm start
 
 ## Generating a Component with a Component Class
 
-With the Mapbox API key in place, let's generate a new component for our map.
+With the TomTom API key in place, let's generate a new component for our map.
 
 ```run:command cwd=super-rentals
 ember generate component map --component-class=@glimmer/component
@@ -100,6 +94,12 @@ git add tests/integration/components/map-test.gjs
 ## Parameterizing Components with Arguments
 
 Let's update our component:
+
+
+```run:pause
+PRE PATCH
+```
+
 
 ```run:file:patch lang=gjs cwd=super-rentals filename=app/components/map.gjs
 @@ -1,6 +1,18 @@
@@ -128,7 +128,7 @@ Here, we import the access token from the config file and return it from a `toke
 
 First, we have a container element for styling purposes.
 
-Then we have an `<img>` tag to request and render the static map image from Mapbox.
+Then we have an `<img>` tag to request and render the static map image from TomTom.
 
 Our component's template contains several values that don't yet exist&mdash;`@lat`, `@lng`, `@zoom`, `@width`, and `@height`. These are *[arguments](../../../components/component-arguments-and-html-attributes/#toc_arguments)* to the `<Map>` component that we will supply when invoking it.
 
@@ -144,11 +144,17 @@ Next, we used `...attributes` to allow the invoker to further customize the `<im
 
 Since the passed-in `alt` attribute (if any exists) will appear *after* ours, it will override the value we specified. On the other hand, it is important that we assign `src`, `width`, and `height` after `...attributes`, so that they don't get accidentally overwritten by the invoker.
 
-The `src` attribute interpolates all the required parameters into the URL format for Mapbox's [static map image API](https://docs.mapbox.com/api/maps/#static-images), including the URL-escaped access token from `this.token`.
+The `src` attribute interpolates all the required parameters into the URL format for TomTom's [static map image API](https://developer.tomtom.com/map-display-api/documentation/raster/static-image), including the URL-escaped access token from `this.token`.
 
 Finally, since we are using the `@2x` "retina" image, we should specify the `width` and `height` attributes. Otherwise, the `<img>` will be rendered at twice the size than what we expected!
 
 We just added a lot of behavior into a single component, so let's write some tests! In particular, we should make sure to have some *[test coverage](../../../testing/)* for the overriding-HTML-attributes behavior we discussed above.
+
+
+```run:pause
+PRE PATCH
+```
+
 
 ```run:file:patch lang=gjs cwd=super-rentals filename=tests/integration/components/map-test.gjs
 @@ -2,3 +2,4 @@ import { module, test } from 'qunit';
@@ -251,7 +257,7 @@ We just added a lot of behavior into a single component, so let's write some tes
    });
 ```
 
-Note that the `hasAttribute` test helper from [`qunit-dom`](https://github.com/simplabs/qunit-dom/blob/master/API.md) supports using *[regular expressions](https://javascript.info/regexp-introduction)*. We used this feature to confirm that the `src` attribute starts with `https://api.mapbox.com/`, as opposed to requiring it to be an exact match against a string. This allows us to be reasonably confident that the code is working correctly, without being overly-detailed in our tests.
+Note that the `hasAttribute` test helper from [`qunit-dom`](https://github.com/simplabs/qunit-dom/blob/master/API.md) supports using *[regular expressions](https://javascript.info/regexp-introduction)*. We used this feature to confirm that the `src` attribute starts with `https://api.tomtom.com/`, as opposed to requiring it to be an exact match against a string. This allows us to be reasonably confident that the code is working correctly, without being overly-detailed in our tests.
 
 *Fingers crossed...* Let's run our tests.
 
@@ -267,6 +273,12 @@ wait  #qunit-banner.qunit-pass
 ```
 
 Hey, all the tests passed! But does that mean it actually works in practice? Let's find out by invoking the `<Map>` component from the `<Rental>` component's template:
+
+
+```run:pause
+PRE PATCH
+```
+
 
 ```run:file:patch lang=gjs cwd=super-rentals filename=app/components/rental.gjs
 @@ -1,2 +1,3 @@
@@ -297,9 +309,15 @@ wait  .rentals li:nth-of-type(3) article.rental .map
 
 > Zoey says...
 >
-> If the map image failed to load, make sure you have the correct `MAPBOX_ACCESS_TOKEN` set in `config/environment.js`. Don't forget to restart the development and test servers after editing your config file!
+> If the map image failed to load, make sure you have the correct `TOMTOM_ACCESS_TOKEN` set in `config/environment.js`. Don't forget to restart the development and test servers after editing your config file!
 
 For good measure, we will also add an assertion to the `<Rental>` tests to make sure we rendered the `<Map>` component successfully.
+
+
+```run:pause
+PRE PATCH
+```
+
 
 ```run:file:patch lang=gjs cwd=super-rentals filename=tests/integration/components/rental-test.gjs
 @@ -18,2 +18,3 @@ module('Integration | Component | rental', function (hooks) {
@@ -323,6 +341,12 @@ From within our JavaScript class, we have access to our component's arguments us
 > Zoey says...
 >
 > `this.args` is an API provided by the Glimmer component superclass. You may come across other component superclasses, such as "classic" components in legacy codebases, that provide different APIs for accessing component arguments from JavaScript code.
+
+
+```run:pause
+PRE PATCH
+```
+
 
 ```run:file:patch lang=js cwd=super-rentals filename=app/components/map.gjs
 @@ -3,3 +3,15 @@ import ENV from 'super-rentals/config/environment';
@@ -369,6 +393,12 @@ Ember does this by automatically tracking any variables that were accessed while
 ## Getting JavaScript Values into the Test Context
 
 Just to be sure, we can add a test for this behavior:
+
+
+```run:pause
+PRE PATCH
+```
+
 
 ```run:file:patch lang=gjs cwd=super-rentals filename=tests/integration/components/map-test.gjs
 @@ -2,5 +2,6 @@ import { module, test } from 'qunit';
